@@ -8,8 +8,8 @@
 #define INC_DICTIONARY
 #define CUSTOM_CONTAINERS
 #include <Types.h>
-#include <assert.h>
 #include <iostream>
+#include <numeric>
 #include <random>
 
 enum Rank {
@@ -66,7 +66,7 @@ struct Card {
 
     Card(u8 rank, u8 suit) : rank(rank), suit(suit) {}
 
-    [[nodiscard]] u32 getValue(u32 aceValue = 11) const {
+    [[nodiscard]] u32 getValue() const {
         switch (rank) {
             case TWO:
             case THREE:
@@ -83,7 +83,7 @@ struct Card {
             case KING:
                 return 10;
             case ACE:
-                return aceValue;
+                return 11;
             default:
                 return 0;
         }
@@ -156,57 +156,96 @@ public:
     }
 };
 
-enum GameState {
-    START,
-    ACTIVE,
-    BUST,
-    WIN,
-    QUIT,
+class Player {
+public:
+    Vector<Card> cards;
+    bool hasAce = false;
+    Player()    = default;
+
+    void addCard(const Card& card) {
+        cards.push_back(card);
+        if (card.rank == ACE) {
+            hasAce = true;
+        }
+    }
+
+    [[nodiscard]] u32 getHandValue() const {
+        u32 value =
+          std::accumulate(cards.begin(), cards.end(), 0, [&](u32 total, const Card& card) {
+              return total + card.getValue();
+          });
+
+        if (value > 21 && hasAce)
+            value -= 10;
+
+        return value;
+    }
+
+    [[nodiscard]] bool isBust() const {
+        return getHandValue() > 21;
+    }
+
+    [[nodiscard]] bool isBlackjack() const {
+        return (cards.size() == 2) && (getHandValue() == 21);
+    }
+};
+
+class Blackjack {
+public:
+    Deck deck;
+    Player player;
+    Player dealer;
+
+    Blackjack() {
+        deck.shuffle();
+
+        player.addCard(deck.deal().value());
+        player.addCard(deck.deal().value());
+
+        dealer.addCard(deck.deal().value());
+        dealer.addCard(deck.deal().value());
+    }
+
+    void playerTurn() {
+        char input;
+        do {
+            std::cout << "Your hand: " << player.getHandValue() << '\n';
+            std::cout << "Hit (h) or Stand(s): ";
+            std::cin >> input;
+            if (input == 'h') {
+                player.addCard(deck.deal().value());
+            }
+        } while (input == 'h' && !player.isBust());
+    }
+
+    void dealerTurn() {
+        while (dealer.getHandValue() < 17) {
+            dealer.addCard(deck.deal().value());
+        }
+    }
+
+    void results() const {
+        if (player.isBust()) {
+            std::cout << "You busted! Dealer wins.\n";
+        } else if (dealer.isBust()) {
+            std::cout << "Dealer busted! You win.\n";
+        } else if (player.getHandValue() > dealer.getHandValue()) {
+            std::cout << "You won with: " << player.getHandValue() << '\n';
+        } else if (player.getHandValue() == dealer.getHandValue()) {
+            std::cout << "It's a tie!\n";
+        } else {
+            std::cout << "Dealer wins with: " << dealer.getHandValue() << '\n';
+        }
+    }
 };
 
 int main() {
-    Deck deck;
-    deck.shuffle();
-
-    GameState state = START;
-    bool running    = true;
-    u32 player      = 0;
-    u32 dealer      = 0;
-
-    while (running) {
-        switch (state) {
-            case START: {
-                auto player1 = deck.deal();
-                assert(player1.has_value());
-                auto dealer1 = deck.deal();
-                assert(dealer1.has_value());
-                auto player2 = deck.deal();
-                assert(player2.has_value());
-                auto dealer2 = deck.deal();
-                assert(dealer2.has_value());
-
-                player = player1->getValue() + player2->getValue();
-                dealer = dealer1->getValue() + dealer2->getValue();
-
-                state = ACTIVE;
-            } break;
-            case ACTIVE: {
-            } break;
-            case BUST: {
-                state = QUIT;
-            } break;
-            case WIN: {
-                state = QUIT;
-            } break;
-            case QUIT: {
-                running = false;
-            } break;
-        }
-
-        // Update game state in TUI
-        std::cout << "PLAYER: " << player << '\r' << std::flush;
-        // std::cout << "DEALER: " << dealer << '\r' << std::flush;
+    Blackjack bj;
+    bj.playerTurn();
+    if (!bj.player.isBust()) {
+        bj.dealerTurn();
     }
+    bj.results();
 
     return 0;
 }
