@@ -207,6 +207,10 @@ public:
     }
 
     void playerTurn() {
+        if (player.isBlackjack() && !dealer.isBlackjack()) {
+            return;
+        }
+
         char input;
         do {
             std::cout << "Your hand: " << player.getHandValue() << '\n';
