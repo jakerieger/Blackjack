@@ -119,6 +119,11 @@ public:
     Vector<Card> cards;
 
     Deck() {
+        reset();
+    }
+
+    void reset() {
+        cards.clear();
         cards.reserve(52);
         for (auto rank = 0; rank < NUM_RANKS; ++rank) {
             for (auto suit = 0; suit < NUM_SUITS; ++suit) {
@@ -197,6 +202,10 @@ public:
     Player dealer;
 
     Blackjack() {
+        init();
+    }
+
+    void init() {
         deck.shuffle();
 
         player.addCard(deck.deal().value());
@@ -204,6 +213,13 @@ public:
 
         dealer.addCard(deck.deal().value());
         dealer.addCard(deck.deal().value());
+    }
+
+    void reset() {
+        deck.reset();
+        player.cards.clear();
+        dealer.cards.clear();
+        init();
     }
 
     void playerTurn() {
@@ -241,15 +257,25 @@ public:
             std::cout << "Dealer wins with: " << dealer.getHandValue() << '\n';
         }
     }
+
+    void play() {
+        playerTurn();
+        if (!player.isBust())
+            dealerTurn();
+        results();
+
+        char input;
+        std::cout << "\nPlay again? (y/n): ";
+        std::cin >> input;
+        if (input == 'y') {
+            reset();
+            play();
+        }
+    }
 };
 
 int main() {
     Blackjack bj;
-    bj.playerTurn();
-    if (!bj.player.isBust()) {
-        bj.dealerTurn();
-    }
-    bj.results();
-
+    bj.play();
     return 0;
 }
