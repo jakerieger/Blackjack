@@ -8,6 +8,7 @@
 #define INC_DICTIONARY
 #define CUSTOM_CONTAINERS
 #include <Types.h>
+#include <assert.h>
 #include <iostream>
 #include <random>
 
@@ -64,6 +65,29 @@ struct Card {
     u8 suit;
 
     Card(u8 rank, u8 suit) : rank(rank), suit(suit) {}
+
+    [[nodiscard]] u32 getValue(u32 aceValue = 11) const {
+        switch (rank) {
+            case TWO:
+            case THREE:
+            case FOUR:
+            case FIVE:
+            case SIX:
+            case SEVEN:
+            case EIGHT:
+            case NINE:
+                return (u32)rank + 2;
+            case TEN:
+            case JACK:
+            case QUEEN:
+            case KING:
+                return 10;
+            case ACE:
+                return aceValue;
+            default:
+                return 0;
+        }
+    }
 
     [[nodiscard]] u16 getBits() const {
         return CAST<u16>(rank) << 8 | suit;
@@ -126,19 +150,63 @@ public:
         std::cout << "Size: " << cards.size() << "\n\n";
 
         for (auto& card : cards) {
-            std::cout << card.toString() << '\n';
-            auto bits = card.getBits();
-            auto rank = (u32)Card::getRankFromBits(card.getBits());
-            auto suit = (u32)Card::getSuitFromBits(card.getBits());
-            std::cout << rank << " " << suit << '\n';
+            std::cout << "[ " << card.toString() << " ]\n";
+            std::cout << card.getValue() << '\n';
         }
     }
+};
+
+enum GameState {
+    START,
+    ACTIVE,
+    BUST,
+    WIN,
+    QUIT,
 };
 
 int main() {
     Deck deck;
     deck.shuffle();
-    deck.print();
+
+    GameState state = START;
+    bool running    = true;
+    u32 player      = 0;
+    u32 dealer      = 0;
+
+    while (running) {
+        switch (state) {
+            case START: {
+                auto player1 = deck.deal();
+                assert(player1.has_value());
+                auto dealer1 = deck.deal();
+                assert(dealer1.has_value());
+                auto player2 = deck.deal();
+                assert(player2.has_value());
+                auto dealer2 = deck.deal();
+                assert(dealer2.has_value());
+
+                player = player1->getValue() + player2->getValue();
+                dealer = dealer1->getValue() + dealer2->getValue();
+
+                state = ACTIVE;
+            } break;
+            case ACTIVE: {
+            } break;
+            case BUST: {
+                state = QUIT;
+            } break;
+            case WIN: {
+                state = QUIT;
+            } break;
+            case QUIT: {
+                running = false;
+            } break;
+        }
+
+        // Update game state in TUI
+        std::cout << "PLAYER: " << player << '\r' << std::flush;
+        // std::cout << "DEALER: " << dealer << '\r' << std::flush;
+    }
 
     return 0;
 }
